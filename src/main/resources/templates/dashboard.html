@@ -1,0 +1,74 @@
+<html>
+<style>
+table, th, td {
+  border:1px solid black;
+}
+</style>
+<body>
+<h1>Inventory Dashboard</h1>
+<table>
+  <tr>
+    <th>Product Name</th>
+    <th>Quantity</th>
+  </tr>
+  <tr th:each="product : ${products}">
+    <td th:text="${product.name}"></td>
+    <td th:text="${product.quantity}"></td>
+  </tr>
+</table>
+
+<div>
+    <h3>Update Quantity</h3>
+    <form id="updateForm" onsubmit="updateQuantity(event)">
+        <label for="productId">Product ID:</label>
+        <input type="number" id="productId" name="productId" required>
+
+        <label for="newQuantity">New Quantity:</label>
+        <input type="number" id="newQuantity" name="newQuantity" required>
+
+        <button type="submit">Update Quantity</button>
+    </form>
+    <p id="updateStatus"></p>
+</div>
+</body>
+</html>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.0/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<script>
+    let socket = new SockJS('/inventory-websocket');
+    let stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function (frame) {
+        console.log('Connected: ' + frame);
+        stompClient.subscribe('/topic/inventoryUpdates', function (message) {
+            let product = JSON.parse(message.body);
+            updateProductInTable(product);
+        });
+    });
+
+    function updateProductInTable(product) {
+        let row = document.getElementById("product-" + product.id);
+        if (row) {
+            row.querySelector(".quantity").textContent = product.quantity;
+        }
+    }
+    
+    function updateQuantity(event) {
+        event.preventDefault();
+        const productId = document.getElementById('productId').value;
+        const newQuantity = document.getElementById('newQuantity').value;
+
+        fetch(`/updateQuantity?productId=${productId}&newQuantity=${newQuantity}`, {
+            method: 'POST'
+        })
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('updateStatus').innerText = data;
+            // Optionally, refresh the product list to show the updated quantity
+            location.reload(); // Reloads page to reflect changes
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+
